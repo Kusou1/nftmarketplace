@@ -1,4 +1,4 @@
-// NFTMarketplace.test.ts
+// NFTMarketplace.test.ts 单元测试
 import { expect } from "chai"
 import { BigNumber, Signer } from "ethers"
 import { ethers } from "hardhat"

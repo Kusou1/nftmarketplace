@@ -21,8 +21,10 @@ contract NFTMarketplace is ReentrancyGuard {
   address payable public marketowner;
   uint256 public listingFee = 0.025 ether;
 
+  // 状态 上架，卖出，主动删除或直接取消授权
   enum State { Created, Release, Inactive }
 
+  // 定义商品Item
   struct MarketItem {
     uint id;
     address nftContract;
@@ -35,6 +37,7 @@ contract NFTMarketplace is ReentrancyGuard {
 
   mapping(uint256 => MarketItem) private marketItems;
 
+  // 上架售出
   event MarketItemCreated (
     uint indexed id,
     address indexed nftContract,
@@ -69,7 +72,7 @@ contract NFTMarketplace is ReentrancyGuard {
   /**
    * @dev create a MarketItem for NFT sale on the marketplace.
    * 
-   * List an NFT.
+   * List an NFT. 上架NFT item
    */
   function createMarketItem(
     address nftContract,
@@ -98,6 +101,7 @@ contract NFTMarketplace is ReentrancyGuard {
     // change to approve mechanism from the original direct transfer to market
     // IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
 
+    // emit一个事件，表明商品已经上架了，并把参数传递过去，可供前端使用
     emit MarketItemCreated(
       id,
       nftContract,
@@ -112,20 +116,23 @@ contract NFTMarketplace is ReentrancyGuard {
   /**
    * @dev delete a MarketItem from the marketplace.
    * 
-   * de-List an NFT.
+   * de-List an NFT. 下架 NFT
    * 
    * todo ERC721.approve can't work properly!! comment out
    */
   function deleteMarketItem(uint256 itemId) public nonReentrant {
     require(itemId <= _itemCounter.current(), "id must <= item count");
     require(marketItems[itemId].state == State.Created, "item must be on market");
-    MarketItem storage item = marketItems[itemId];
+    MarketItem storage item = marketItems[itemId]; // should use storage!!
 
     require(IERC721(item.nftContract).ownerOf(item.tokenId) == msg.sender, "must be the owner");
+    // 判断是否有授权
     require(IERC721(item.nftContract).getApproved(item.tokenId) == address(this), "NFT must be approved to market");
 
+    // 更改商品状态
     item.state = State.Inactive;
 
+    // emit 一个事件
     emit MarketItemSold(
       itemId,
       item.nftContract,
@@ -144,6 +151,7 @@ contract NFTMarketplace is ReentrancyGuard {
    * NFT:         seller    -> buyer
    * value:       buyer     -> seller
    * listingFee:  contract  -> marketowner
+   * 购买 NFT item
    */
   function createMarketSale(
     address nftContract,
@@ -154,15 +162,21 @@ contract NFTMarketplace is ReentrancyGuard {
     uint price = item.price;
     uint tokenId = item.tokenId;
 
+    // 判断要有付钱
     require(msg.value == price, "Please submit the asking price");
+    // 判断当前商品是否有授权
     require(IERC721(nftContract).getApproved(tokenId) == address(this), "NFT must be approved to market");
 
+    // 商品信息更改
     item.buyer = payable(msg.sender);
     item.state = State.Release;
     _itemSoldCounter.increment();    
 
+    // 将nft转让
     IERC721(nftContract).transferFrom(item.seller, msg.sender, tokenId);
+    // 把listingFee转给nft的拥有者 建议使用safeTransferFrom
     payable(marketowner).transfer(listingFee);
+    // 把商品的钱转给卖家
     item.seller.transfer(msg.value);
 
     emit MarketItemSold(
@@ -177,7 +191,7 @@ contract NFTMarketplace is ReentrancyGuard {
   }
 
   /**
-   * @dev Returns all unsold market items
+   * @dev Returns all unsold market items 查询函数
    * condition: 
    *  1) state == Created
    *  2) buyer = 0x0

@@ -1,4 +1,4 @@
-// src/playMarket.ts
+// src/playMarket.ts 与合约交互的脚本
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import { BadgeToken, NFTMarketplace } from  "../typechain"

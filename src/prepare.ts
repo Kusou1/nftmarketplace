@@ -1,4 +1,4 @@
-// src/prepare.ts
+// src/prepare.ts 为Webapp准备的脚本
 import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import { BadgeToken, NFTMarketplace } from  "../typechain"
